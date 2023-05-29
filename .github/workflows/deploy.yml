@@ -76,3 +76,8 @@ jobs:
             - name: Terraform Apply
               run: terraform apply -auto-approve -input=false
               working-directory: ./infrastructure
+
+            - name: Release
+              uses: softprops/action-gh-release@v1
+              with:
+                tag_name: v1.0.0
