@@ -1,0 +1,77 @@
+name: 'Build and Deploy'
+
+env:
+  TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+  TF_VAR_audiences: ${{ secrets.AUDIENCES }}
+  TF_VAR_cognito_user_pool_id: ${{ secrets.COGNITO_POOL_ID }}
+  COGNITO_POOL_ID: ${{ secrets.COGNITO_POOL_ID }}
+  TF_VAR_cognito_region: ${{ secrets.COGNITO_REGION }}
+  COGNITO_REGION: ${{ secrets.COGNITO_REGION }}
+
+on:
+    push:
+        branches: [ "main" ]  
+
+concurrency:
+    group: environment-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    id-token: write
+    contents: read
+
+jobs:
+    build-and-deploy:
+        name: 'Build and Deploy'
+        runs-on: ubuntu-latest
+        environment: prod
+        env:
+            STAGE: prod
+    
+        defaults:
+            run:
+                shell: bash
+    
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+    
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@v1
+              with:
+                role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+                role-session-name: github-actions-terraform-maroon-api
+                aws-region: us-west-2
+
+            - name: Set up Go
+              uses: actions/setup-go@v4
+              with:
+                go-version: '1.20.4'
+
+            - name: Build Spark CLI
+              run: GOOS=linux GOARCH=amd64 go build
+    
+            - name: Setup Terraform
+              uses: hashicorp/setup-terraform@v1
+    
+        # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+            - name: Terraform Init
+              run: terraform init
+              working-directory: ./infrastructure
+    
+        # Checks that all Terraform configuration files adhere to a canonical format
+            - name: Terraform Format
+              run: terraform fmt -check
+              working-directory: ./infrastructure
+    
+        # Generates an execution plan for Terraform
+            - name: Terraform Plan
+              run: terraform plan -input=false
+              working-directory: ./infrastructure
+    
+            # On push to "main", build or change infrastructure according to Terraform configuration files
+            # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
+            - name: Terraform Apply
+              run: terraform apply -auto-approve -input=false
+              working-directory: ./infrastructure
