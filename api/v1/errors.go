@@ -1,11 +1,15 @@
 package v1
 
 import (
+	"net/http"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/sirupsen/logrus"
 )
 
 var InvalidRequestExceptionMessage = "Bad Request"
+var UnauthorizedExceptionMessage = "Unauthorized"
+var ForbiddenExceptionMessage = "Forbidden"
 var InternalServerExceptionMessage = "Internal Server Error"
 
 type Error struct {
@@ -20,16 +24,34 @@ type RestError struct {
 
 func BadRequestError() *RestError {
 	return &RestError{
-		Status: 400,
+		Status: http.StatusBadRequest,
 		Error: Error{
 			Message: InvalidRequestExceptionMessage,
 		},
 	}
 }
 
+func UnauthorizedError() *RestError {
+	return &RestError{
+		Status: http.StatusUnauthorized,
+		Error: Error{
+			Message: UnauthorizedExceptionMessage,
+		},
+	}
+}
+
+func ForbiddenError() *RestError {
+	return &RestError{
+		Status: http.StatusForbidden,
+		Error: Error{
+			Message: ForbiddenExceptionMessage,
+		},
+	}
+}
+
 func InternalServerError() *RestError {
 	return &RestError{
-		Status: 500,
+		Status: http.StatusInternalServerError,
 		Error: Error{
 			Message: InternalServerExceptionMessage,
 		},

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -76,7 +77,13 @@ func GetConsoleUrl(ctx *gin.Context) {
 	credentials, err := assumeRole(fmt.Sprintf("arn:aws:iam::%s:role/%s", input.AccountId, iamRoleName), username.(string), int32(input.Duration))
 	if err != nil {
 		logrus.Errorf("Error assuming role '%s': %s", iamRoleName, err.Error())
-		ctx.AbortWithStatusJSON(400, BadRequestError())
+		var e *RestError
+		if strings.Contains(err.Error(), "is not authorized to perform") {
+			e = ForbiddenError()
+		} else {
+			e = BadRequestError()
+		}
+		ctx.JSON(e.Status, e)
 		return
 	}
 
@@ -89,7 +96,8 @@ func GetConsoleUrl(ctx *gin.Context) {
 	var jsonCredentials []byte
 	if jsonCredentials, err = json.Marshal(urlCredentials); err != nil {
 		logrus.Errorf("Error parsing credentials: %s", err.Error())
-		ctx.AbortWithStatusJSON(500, InternalServerError())
+		err := InternalServerError()
+		ctx.JSON(err.Status, err)
 		return
 	}
 
@@ -100,14 +108,16 @@ func GetConsoleUrl(ctx *gin.Context) {
 	response, err := http.Get(federationUrl)
 	if err != nil {
 		logrus.Errorf("Error getting sign in token: %s", err.Error())
-		ctx.AbortWithStatusJSON(500, InternalServerError())
+		err := InternalServerError()
+		ctx.JSON(err.Status, err)
 		return
 	}
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		logrus.Errorf("Error reading sign in token: %s", err.Error())
-		ctx.AbortWithStatusJSON(500, InternalServerError())
+		err := InternalServerError()
+		ctx.JSON(err.Status, err)
 		return
 	}
 
@@ -115,7 +125,8 @@ func GetConsoleUrl(ctx *gin.Context) {
 
 	if err = json.Unmarshal(body, &signInToken); err != nil {
 		logrus.Errorf("Error unmarshaling sign in token: %s", err.Error())
-		ctx.AbortWithStatusJSON(500, InternalServerError())
+		err := InternalServerError()
+		ctx.JSON(err.Status, err)
 		return
 	}
 

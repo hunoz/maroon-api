@@ -111,8 +111,13 @@ func AssumeRole(ctx *gin.Context) {
 	credentials, err := assumeRole(input.RoleArn, username.(string), input.SessionDuration)
 	if err != nil {
 		logrus.Errorf("Error fetching role credentials: %s", err.Error())
-		err := BadRequestError()
-		ctx.JSON(err.Status, err)
+		var e *RestError
+		if strings.Contains(err.Error(), "is not authorized to perform") {
+			e = ForbiddenError()
+		} else {
+			e = BadRequestError()
+		}
+		ctx.JSON(e.Status, e)
 		return
 	}
 
