@@ -107,7 +107,7 @@ func JSONLogMiddleware(stage string) gin.HandlerFunc {
 
 		entry := logrus.WithFields(logrus.Fields{
 			"client_ip":  getClientIP(c),
-			"duration":   duration,
+			"duration":   duration.Milliseconds(),
 			"method":     c.Request.Method,
 			"path":       c.Request.RequestURI,
 			"status":     c.Writer.Status(),
