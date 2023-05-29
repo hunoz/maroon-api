@@ -62,7 +62,7 @@ func NewAuth(config *Config) *Auth {
 		for {
 			select {
 			case <-ticker.C:
-				logrus.Errorf("Refreshing JWKS")
+				logrus.Info("Refreshing JWKS")
 				a.CacheJWK()
 			case <-quit:
 				ticker.Stop()
@@ -177,7 +177,7 @@ func JWTMiddleware(auth Auth) gin.HandlerFunc {
 				ctx.Set(key, val)
 			}
 			username, _ := ctx.Get("cognito:username")
-			logrus.Errorf("Validated token for user '%s'", username)
+			logrus.Infof("Validated token for user '%s'", username)
 			ctx.Next()
 		}
 	}
