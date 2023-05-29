@@ -119,6 +119,7 @@ func AssumeRole(ctx *gin.Context) {
 	ctx.JSON(200, AssumeRoleOutput{
 		AccessKeyId:     *credentials.AccessKeyId,
 		SecretAccessKey: *credentials.SecretAccessKey,
+		SessionToken:    *credentials.SessionToken,
 		Expiration:      *credentials.Expiration,
 	})
 }
