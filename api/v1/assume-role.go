@@ -100,7 +100,7 @@ func AssumeRole(ctx *gin.Context) {
 		return
 	}
 
-	matches, _ := regexp.MatchString(`arn:aws:iam::\d{12}:role/[0-9A-Za-z_+=,.@-]{1,64}`, input.RoleArn)
+	matches, _ := regexp.MatchString(`^arn:aws:iam::\d{12}:role/[0-9A-Za-z_+=,.@-]{1,64}$`, input.RoleArn)
 	if !matches {
 		logrus.Errorf("String does not match role ARN regex: %s", input.RoleArn)
 		err := BadRequestError()
