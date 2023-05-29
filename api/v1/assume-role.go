@@ -79,8 +79,9 @@ type AssumeRoleInput struct {
 }
 
 type AssumeRoleOutput struct {
-	AccessKeyId     string
-	SecretAccessKey string
+	AccessKeyId     string `json:"accessKeyid"`
+	SecretAccessKey string `json:"secretAccessKey"`
+	SessionToken    string `json:"sessionToken"`
 	Expiration      time.Time
 }
 
