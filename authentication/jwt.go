@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
+	"github.com/sirupsen/logrus"
 )
 
 // Auth ...
@@ -61,7 +62,7 @@ func NewAuth(config *Config) *Auth {
 		for {
 			select {
 			case <-ticker.C:
-				log.Printf("Refreshing JWKS")
+				logrus.Errorf("Refreshing JWKS")
 				a.CacheJWK()
 			case <-quit:
 				ticker.Stop()
@@ -169,14 +170,14 @@ func JWTMiddleware(auth Auth) gin.HandlerFunc {
 
 		claims, err := auth.ParseJWT(tokenHeader)
 		if err != nil {
-			log.Println("Invalid token")
+			logrus.Errorf("Invalid token")
 			ctx.AbortWithStatus(401)
 		} else {
 			for key, val := range claims {
 				ctx.Set(key, val)
 			}
 			username, _ := ctx.Get("cognito:username")
-			log.Printf("Validated token for user '%s'\n", username)
+			logrus.Errorf("Validated token for user '%s'", username)
 			ctx.Next()
 		}
 	}

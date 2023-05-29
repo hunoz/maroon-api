@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 type AccessType string
@@ -55,13 +56,13 @@ func GetConsoleUrl(ctx *gin.Context) {
 	username, _ := ctx.Get("cognito:username")
 
 	if err := ctx.ShouldBindQuery(&input); err != nil {
-		fmt.Printf("Error: %s\n", err.Error())
-		ctx.AbortWithError(400, err)
+		err := parseBindingError(err)
+		ctx.JSON(err.Status, err)
 		return
 	}
 
 	if !isValidAccessType(input.AccessType) {
-		ctx.AbortWithStatusJSON(400, Error{Message: InvalidRequestExceptionMessage})
+		ctx.AbortWithStatusJSON(400, BadRequestError())
 		return
 	}
 
@@ -72,9 +73,10 @@ func GetConsoleUrl(ctx *gin.Context) {
 		iamRoleName = "MaroonApiReadOnlyAccessRole-DO-NOT-DELETE"
 	}
 
-	credentials, err := AssumeRole(fmt.Sprintf("arn:aws:iam::%s:role/%s", input.AccountId, iamRoleName), username.(string), int32(input.Duration))
+	credentials, err := assumeRole(fmt.Sprintf("arn:aws:iam::%s:role/%s", input.AccountId, iamRoleName), username.(string), int32(input.Duration))
 	if err != nil {
-		ctx.AbortWithError(500, err)
+		logrus.Errorf("Error assuming role '%s': %s", iamRoleName, err.Error())
+		ctx.AbortWithStatusJSON(400, BadRequestError())
 		return
 	}
 
@@ -86,7 +88,8 @@ func GetConsoleUrl(ctx *gin.Context) {
 
 	var jsonCredentials []byte
 	if jsonCredentials, err = json.Marshal(urlCredentials); err != nil {
-		ctx.AbortWithStatus(500)
+		logrus.Errorf("Error parsing credentials: %s", err.Error())
+		ctx.AbortWithStatusJSON(500, InternalServerError())
 		return
 	}
 
@@ -96,20 +99,23 @@ func GetConsoleUrl(ctx *gin.Context) {
 
 	response, err := http.Get(federationUrl)
 	if err != nil {
-		ctx.AbortWithStatus(500)
+		logrus.Errorf("Error getting sign in token: %s", err.Error())
+		ctx.AbortWithStatusJSON(500, InternalServerError())
 		return
 	}
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		ctx.AbortWithStatus(500)
+		logrus.Errorf("Error reading sign in token: %s", err.Error())
+		ctx.AbortWithStatusJSON(500, InternalServerError())
 		return
 	}
 
 	signInToken := SignInTokenResponse{}
 
 	if err = json.Unmarshal(body, &signInToken); err != nil {
-		ctx.AbortWithStatus(500)
+		logrus.Errorf("Error unmarshaling sign in token: %s", err.Error())
+		ctx.AbortWithStatusJSON(500, InternalServerError())
 		return
 	}
 

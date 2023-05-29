@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"regexp"
+	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -12,11 +14,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
-	"github.com/fatih/color"
+	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
-
-var errMessage = color.New(color.FgRed).SprintFunc()
 
 type IamCredentials struct {
 	AccessKeyId     string `json:"AccessKeyId" binding:"required"`
@@ -31,21 +32,21 @@ func getIamCredentials() (*IamCredentials, error) {
 		SecretId: aws.String("MaroonApiIamUser"),
 	})
 	if err != nil {
-		log.Printf("%s\n", errMessage("Error getting IAM user credentials: ", err.Error()))
+		logrus.Errorf("Error getting IAM user credentials: %s", err.Error())
 		return nil, errors.Wrap(err, "Error getting IAM user credentials")
 	}
 
 	var credentials IamCredentials
 
 	if err = json.Unmarshal([]byte(*output.SecretString), &credentials); err != nil {
-		log.Printf("%s\n", errMessage("Error parsing IAM user credentials: ", err.Error()))
+		logrus.Errorf("Error parsing IAM user credentials: %s", err.Error())
 		return nil, errors.Wrap(err, "Error parsing IAM user credentials")
 	}
 
 	return &credentials, nil
 }
 
-func AssumeRole(roleArn string, username string, duration int32) (*types.Credentials, error) {
+func assumeRole(roleArn string, username string, duration int32) (*types.Credentials, error) {
 	iamCredentials, err := getIamCredentials()
 	if err != nil {
 		return nil, err
@@ -66,8 +67,57 @@ func AssumeRole(roleArn string, username string, duration int32) (*types.Credent
 		RoleSessionName: aws.String(fmt.Sprintf("MaroonApi-%s", username)),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "Error Assumeing Role")
+		return nil, errors.Wrap(err, "Error Assuming Role")
 	}
 
 	return output.Credentials, nil
+}
+
+type AssumeRoleInput struct {
+	RoleArn         string `json:"roleArn" binding:"required" form:"roleArn"`
+	SessionDuration int32  `json:"sessionDuration" binding:"required,numeric,min=900,max=43200" form:"sessionDuration"`
+}
+
+type AssumeRoleOutput struct {
+	AccessKeyId     string
+	SecretAccessKey string
+	Expiration      time.Time
+}
+
+func toCamelCase(str string) string {
+	firstLetter := str[0]
+	return strings.ToLower(string(firstLetter)) + str[1:]
+}
+
+func AssumeRole(ctx *gin.Context) {
+	input := AssumeRoleInput{}
+	username, _ := ctx.Get("cognito:username")
+
+	if err := ctx.ShouldBindQuery(&input); err != nil {
+		err := parseBindingError(err)
+		ctx.JSON(err.Status, err)
+		return
+	}
+
+	matches, _ := regexp.MatchString(`arn:aws:iam::\d{12}:role/[0-9A-Za-z_+=,.@-]{1,64}`, input.RoleArn)
+	if !matches {
+		logrus.Errorf("String does not match role ARN regex: %s", input.RoleArn)
+		err := BadRequestError()
+		ctx.JSON(err.Status, err)
+		return
+	}
+
+	credentials, err := assumeRole(input.RoleArn, username.(string), input.SessionDuration)
+	if err != nil {
+		logrus.Errorf("Error fetching role credentials: %s", err.Error())
+		err := BadRequestError()
+		ctx.JSON(err.Status, err)
+		return
+	}
+
+	ctx.JSON(200, AssumeRoleOutput{
+		AccessKeyId:     *credentials.AccessKeyId,
+		SecretAccessKey: *credentials.SecretAccessKey,
+		Expiration:      *credentials.Expiration,
+	})
 }

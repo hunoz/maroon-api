@@ -2,17 +2,17 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	ginadapter "github.com/awslabs/aws-lambda-go-api-proxy/gin"
-	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 	v1 "github.com/hunoz/maroon-api/api/v1"
 	"github.com/hunoz/maroon-api/authentication"
+	"github.com/hunoz/maroon-api/logging"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -20,6 +20,7 @@ const (
 	PROD = "prod"
 )
 
+var stage string
 var ginLambda *ginadapter.GinLambdaV2
 var ginRouter *gin.Engine
 
@@ -29,13 +30,12 @@ func Handler(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.AP
 }
 
 func setGinMode() {
-	var stage string
-	if stage = os.Getenv("STAGE"); stage == "" {
-		stage = BETA
-	}
-
-	if strings.ToLower(stage) == PROD {
+	switch stageVariable := strings.ToLower(os.Getenv("STAGE")); stageVariable {
+	case PROD:
+		stage = stageVariable
 		gin.SetMode(gin.ReleaseMode)
+	default:
+		stage = BETA
 	}
 }
 
@@ -43,11 +43,11 @@ func getRegionAndPoolId() (region string, poolId string) {
 	var cognitoRegion string
 	var cognitoPoolId string
 	if cognitoRegion = os.Getenv("COGNITO_REGION"); cognitoRegion == "" {
-		color.Red("'COGNITO_REGION' environment variable not set!")
+		logrus.Fatal("'COGNITO_REGION' environment variable not set!")
 		os.Exit(1)
 	}
 	if cognitoPoolId = os.Getenv("COGNITO_POOL_ID"); cognitoPoolId == "" {
-		color.Red("'COGNITO_POOL_ID' environment variable not set!")
+		logrus.Fatal("'COGNITO_POOL_ID' environment variable not set!")
 		os.Exit(1)
 	}
 
@@ -55,8 +55,6 @@ func getRegionAndPoolId() (region string, poolId string) {
 }
 
 func setupRoutes() {
-	setGinMode()
-
 	cognitoRegion, cognitoPoolId := getRegionAndPoolId()
 
 	auth := authentication.NewAuth(&authentication.Config{
@@ -64,8 +62,8 @@ func setupRoutes() {
 		CognitoUserPoolID: cognitoPoolId,
 	})
 
-	router := gin.Default()
-	router.Use(gin.Logger())
+	router := gin.New()
+	router.Use(logging.JSONLogMiddleware(stage))
 	router.Use(gin.Recovery())
 	router.Use(authentication.JWTMiddleware(*auth))
 
@@ -74,22 +72,25 @@ func setupRoutes() {
 	v1Api := api.Group("/v1")
 
 	v1Api.GET("/console-url", v1.GetConsoleUrl)
+	v1Api.GET("/assume-role", v1.AssumeRole)
 
 	ginRouter = router
 }
 
 func init() {
-	log.Println("Setting up routes")
+	setGinMode()
+	logging.SetLogMode(stage)
+	logrus.Info("Setting up routes")
 	setupRoutes()
 }
 
 func main() {
 	if _, exists := os.LookupEnv("AWS_LAMBDA_FUNCTION_NAME"); exists {
-		log.Println("Running in lambda mode")
+		logrus.Info("Running in lambda mode")
 		ginLambda = ginadapter.NewV2(ginRouter)
 		lambda.Start(Handler)
 	} else {
-		log.Println("Running in local mode")
+		logrus.Info("Running in local mode")
 		ginRouter.Run("127.0.0.1:8080")
 	}
 }
