@@ -18,14 +18,14 @@ resource "aws_secretsmanager_secret_version" "marron_api_user_key_secret_version
 resource "aws_iam_policy" "maroon_api_user_sts_policy" {
   name        = "AllowAssumeRole"
   description = "Allows the user to assume any role anywhere"
-  policy      = jsonencode({
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": "sts:AssumeRole",
-            "Resource": "*"
-        }
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Action" : "sts:AssumeRole",
+        "Resource" : "*"
+      }
     ]
   })
 }
