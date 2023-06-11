@@ -73,6 +73,7 @@ func setupRoutes() {
 
 	v1Api.GET("/console-url", v1.GetConsoleUrl)
 	v1Api.GET("/assume-role", v1.AssumeRole)
+	v1Api.GET("/self", v1.GetUserInfo)
 
 	ginRouter = router
 }
