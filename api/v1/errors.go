@@ -17,6 +17,10 @@ type Error struct {
 	Message string `json:"message"`
 }
 
+type JSONError struct {
+	Error interface{} `json:"error" xml:"-"`
+}
+
 type RestError struct {
 	XMLName xml.Name `xml:"Error" json:"-"`
 	// json:"-" omits the field from marshalling

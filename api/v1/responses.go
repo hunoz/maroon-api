@@ -39,6 +39,11 @@ func renderResponse(ctx *gin.Context, statusCode int, body interface{}) {
 	case "application/xml":
 		ctx.XML(statusCode, body)
 	default:
-		ctx.JSON(statusCode, JSONResponse{Data: body})
+		switch b := body.(type) {
+		case *RestError:
+			ctx.JSON(b.Status, JSONError{Error: body})
+		default:
+			ctx.JSON(statusCode, JSONResponse{Data: body})
+		}
 	}
 }
