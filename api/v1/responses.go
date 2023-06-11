@@ -11,8 +11,8 @@ type XMLResponse struct {
 	XMLName xml.Name `xml:"Data" json:"-"`
 }
 
-type JSONResponse struct {
-	Data interface{} `json:"data" xml:"-"`
+type JSONResponse[T any] struct {
+	Data T `json:"data" xml:"-"`
 }
 
 type AssumeRoleOutput struct {
@@ -41,9 +41,9 @@ func renderResponse(ctx *gin.Context, statusCode int, body interface{}) {
 	default:
 		switch b := body.(type) {
 		case *RestError:
-			ctx.JSON(b.Status, JSONError{Error: body})
+			ctx.JSON(b.Status, JSONError{Error: b})
 		default:
-			ctx.JSON(statusCode, JSONResponse{Data: body})
+			ctx.JSON(statusCode, JSONResponse[interface{}]{Data: b})
 		}
 	}
 }

@@ -80,4 +80,4 @@ jobs:
             - name: Release
               uses: softprops/action-gh-release@v1
               with:
-                tag_name: v1.0.1
+                tag_name: v1.0.2
