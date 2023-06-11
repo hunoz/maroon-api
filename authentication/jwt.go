@@ -121,6 +121,7 @@ func (a *Auth) ParseJWT(tokenString string) (jwt.MapClaims, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		key := convertKey(a.jwk.Keys[index].E, a.jwk.Keys[index].N)
+
 		return key, nil
 	})
 	if err != nil {
@@ -174,10 +175,17 @@ func JWTMiddleware(auth Auth) gin.HandlerFunc {
 			ctx.AbortWithStatus(401)
 		} else {
 			for key, val := range claims {
-				ctx.Set(key, val)
+				if key == "cognito:username" {
+					ctx.Set("username", val)
+				} else if key == "cognito:groups" {
+					ctx.Set("groups", val)
+				} else {
+					ctx.Set(key, val)
+				}
 			}
-			username, _ := ctx.Get("cognito:username")
-			logrus.Infof("Validated token for user '%s'", username)
+			ctx.Set("token", tokenHeader)
+			username, _ := ctx.Get("username")
+			logrus.Infof("Validated token for user '%v'", username)
 			ctx.Next()
 		}
 	}
