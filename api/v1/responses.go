@@ -11,6 +11,10 @@ type XMLResponse struct {
 	XMLName xml.Name `xml:"Data" json:"-"`
 }
 
+type JSONResponse struct {
+	Data interface{} `json:"data" xml:"-"`
+}
+
 type AssumeRoleOutput struct {
 	XMLResponse
 	AccessKeyId     string `json:"accessKeyid"`
@@ -35,6 +39,6 @@ func renderResponse(ctx *gin.Context, statusCode int, body interface{}) {
 	case "application/xml":
 		ctx.XML(statusCode, body)
 	default:
-		ctx.JSON(statusCode, body)
+		ctx.JSON(statusCode, JSONResponse{Data: body})
 	}
 }
