@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -78,18 +77,6 @@ func assumeRole(roleArn string, username string, duration int32, cfg *aws.Config
 	return output.Credentials, nil
 }
 
-type AssumeRoleInput struct {
-	RoleArn         string `json:"roleArn" binding:"required" form:"roleArn"`
-	SessionDuration int32  `json:"sessionDuration" binding:"required,numeric,min=900,max=43200" form:"sessionDuration"`
-}
-
-type AssumeRoleOutput struct {
-	AccessKeyId     string `json:"accessKeyid"`
-	SecretAccessKey string `json:"secretAccessKey"`
-	SessionToken    string `json:"sessionToken"`
-	Expiration      time.Time
-}
-
 func toCamelCase(str string) string {
 	firstLetter := str[0]
 	return strings.ToLower(string(firstLetter)) + str[1:]
@@ -97,11 +84,11 @@ func toCamelCase(str string) string {
 
 func AssumeRole(ctx *gin.Context) {
 	input := AssumeRoleInput{}
-	username, _ := ctx.Get("cognito:username")
+	username, _ := ctx.Get("username")
 
 	if err := ctx.ShouldBindQuery(&input); err != nil {
 		err := parseBindingError(err)
-		ctx.JSON(err.Status, err)
+		renderResponse(ctx, err.Status, err)
 		return
 	}
 
@@ -109,7 +96,7 @@ func AssumeRole(ctx *gin.Context) {
 	if !matches {
 		logrus.Errorf("String does not match role ARN regex: %s", input.RoleArn)
 		err := BadRequestError()
-		ctx.JSON(err.Status, err)
+		renderResponse(ctx, err.Status, err)
 		return
 	}
 
@@ -122,11 +109,11 @@ func AssumeRole(ctx *gin.Context) {
 		} else {
 			e = BadRequestError()
 		}
-		ctx.JSON(e.Status, e)
+		renderResponse(ctx, e.Status, e)
 		return
 	}
 
-	ctx.JSON(200, AssumeRoleOutput{
+	renderResponse(ctx, 200, AssumeRoleOutput{
 		AccessKeyId:     *credentials.AccessKeyId,
 		SecretAccessKey: *credentials.SecretAccessKey,
 		SessionToken:    *credentials.SessionToken,

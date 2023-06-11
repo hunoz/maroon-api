@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"encoding/xml"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -17,8 +18,9 @@ type Error struct {
 }
 
 type RestError struct {
+	XMLName xml.Name `xml:"Error"`
 	// json:"-" omits the field from marshalling
-	Status int `json:"-"`
+	Status int `json:"-" xml:"-"`
 	Error
 }
 

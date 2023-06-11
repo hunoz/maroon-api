@@ -6,14 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type User struct {
-	Username string   `json:"username" type:"string"`
-	Groups   []string `json:"groups" type:"slice"`
-}
-
-func GetUserInfo(context *gin.Context) {
-	username := context.GetString("username")
-	userGroups, _ := context.Get("groups")
+func GetUserInfo(ctx *gin.Context) {
+	username := ctx.GetString("username")
+	userGroups, _ := ctx.Get("groups")
 
 	groups := make([]string, len(userGroups.([]interface{})))
 
@@ -21,7 +16,7 @@ func GetUserInfo(context *gin.Context) {
 		groups[i] = fmt.Sprint(v)
 	}
 
-	context.JSON(200, User{
+	renderResponse(ctx, 200, GetUserInfoOutput{
 		Username: username,
 		Groups:   groups,
 	})

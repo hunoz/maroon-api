@@ -27,16 +27,6 @@ type UrlCredentials struct {
 	SessionToken string `json:"sessionToken" url:"sessionToken"`
 }
 
-type GetConsoleUrlInput struct {
-	AccountId  string     `json:"accountId" binding:"required,numeric,len=12" form:"accountId"`
-	AccessType AccessType `json:"accessType" binding:"required" form:"accessType"`
-	Duration   int        `json:"duration" binding:"required,numeric,min=900,max=43200" form:"duration"`
-}
-
-type GetConsoleUrlOutput struct {
-	ConsoleUrl string `json:"consoleUrl"`
-}
-
 type SignInTokenResponse struct {
 	SignInToken string `json:"SigninToken" binding:"required"`
 }
@@ -54,16 +44,16 @@ func isValidAccessType(accessType AccessType) bool {
 // This required that you be using IAM user credentials. Perhaps fetching from Secrets Manager then assuming role?
 func GetConsoleUrl(ctx *gin.Context) {
 	input := GetConsoleUrlInput{}
-	username, _ := ctx.Get("cognito:username")
+	username, _ := ctx.Get("username")
 
 	if err := ctx.ShouldBindQuery(&input); err != nil {
 		err := parseBindingError(err)
-		ctx.JSON(err.Status, err)
+		renderResponse(ctx, err.Status, err)
 		return
 	}
 
 	if !isValidAccessType(input.AccessType) {
-		ctx.AbortWithStatusJSON(400, BadRequestError())
+		renderResponse(ctx, 400, BadRequestError())
 		return
 	}
 
@@ -83,7 +73,7 @@ func GetConsoleUrl(ctx *gin.Context) {
 		} else {
 			e = BadRequestError()
 		}
-		ctx.JSON(e.Status, e)
+		renderResponse(ctx, e.Status, e)
 		return
 	}
 
@@ -97,7 +87,7 @@ func GetConsoleUrl(ctx *gin.Context) {
 	if jsonCredentials, err = json.Marshal(urlCredentials); err != nil {
 		logrus.Errorf("Error parsing credentials: %s", err.Error())
 		err := InternalServerError()
-		ctx.JSON(err.Status, err)
+		renderResponse(ctx, err.Status, err)
 		return
 	}
 
@@ -109,7 +99,7 @@ func GetConsoleUrl(ctx *gin.Context) {
 	if err != nil {
 		logrus.Errorf("Error getting sign in token: %s", err.Error())
 		err := InternalServerError()
-		ctx.JSON(err.Status, err)
+		renderResponse(ctx, err.Status, err)
 		return
 	}
 
@@ -117,7 +107,7 @@ func GetConsoleUrl(ctx *gin.Context) {
 	if err != nil {
 		logrus.Errorf("Error reading sign in token: %s", err.Error())
 		err := InternalServerError()
-		ctx.JSON(err.Status, err)
+		renderResponse(ctx, err.Status, err)
 		return
 	}
 
@@ -126,7 +116,7 @@ func GetConsoleUrl(ctx *gin.Context) {
 	if err = json.Unmarshal(body, &signInToken); err != nil {
 		logrus.Errorf("Error unmarshaling sign in token: %s", err.Error())
 		err := InternalServerError()
-		ctx.JSON(err.Status, err)
+		renderResponse(ctx, err.Status, err)
 		return
 	}
 
@@ -141,7 +131,7 @@ func GetConsoleUrl(ctx *gin.Context) {
 		federationUrlParameters,
 	)
 
-	ctx.JSON(http.StatusOK, GetConsoleUrlOutput{
+	renderResponse(ctx, 200, GetConsoleUrlOutput{
 		ConsoleUrl: federationUrl,
 	})
 }
