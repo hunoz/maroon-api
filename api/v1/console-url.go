@@ -74,7 +74,7 @@ func GetConsoleUrl(ctx *gin.Context) {
 		iamRoleName = "MaroonApiReadOnlyAccessRole-DO-NOT-DELETE"
 	}
 
-	credentials, err := assumeRole(fmt.Sprintf("arn:aws:iam::%s:role/%s", input.AccountId, iamRoleName), username.(string), int32(input.Duration))
+	credentials, err := assumeRole(fmt.Sprintf("arn:aws:iam::%s:role/%s", input.AccountId, iamRoleName), username.(string), int32(input.Duration), nil)
 	if err != nil {
 		logrus.Errorf("Error assuming role '%s': %s", iamRoleName, err.Error())
 		var e *RestError

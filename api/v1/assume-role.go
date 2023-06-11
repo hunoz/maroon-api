@@ -46,21 +46,26 @@ func getIamCredentials() (*IamCredentials, error) {
 	return &credentials, nil
 }
 
-func assumeRole(roleArn string, username string, duration int32) (*types.Credentials, error) {
+func assumeRole(roleArn string, username string, duration int32, cfg *aws.Config) (*types.Credentials, error) {
 	iamCredentials, err := getIamCredentials()
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
-		config.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(iamCredentials.AccessKeyId, iamCredentials.SecretAccessKey, ""),
-		),
-	)
+	var conf aws.Config
+	if cfg == nil {
+		conf, err = config.LoadDefaultConfig(
+			context.TODO(),
+			config.WithCredentialsProvider(
+				credentials.NewStaticCredentialsProvider(iamCredentials.AccessKeyId, iamCredentials.SecretAccessKey, ""),
+			),
+		)
+	} else {
+		conf = *cfg
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "Error creating config")
 	}
-	client := sts.NewFromConfig(cfg)
+	client := sts.NewFromConfig(conf)
 	output, err := client.AssumeRole(context.TODO(), &sts.AssumeRoleInput{
 		RoleArn:         &roleArn,
 		DurationSeconds: &duration,
@@ -108,7 +113,7 @@ func AssumeRole(ctx *gin.Context) {
 		return
 	}
 
-	credentials, err := assumeRole(input.RoleArn, username.(string), input.SessionDuration)
+	credentials, err := assumeRole(input.RoleArn, username.(string), input.SessionDuration, nil)
 	if err != nil {
 		logrus.Errorf("Error fetching role credentials: %s", err.Error())
 		var e *RestError
