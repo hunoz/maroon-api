@@ -18,7 +18,7 @@ type Error struct {
 }
 
 type RestError struct {
-	XMLName xml.Name `xml:"Error"`
+	XMLName xml.Name `xml:"Error" json:"-"`
 	// json:"-" omits the field from marshalling
 	Status int `json:"-" xml:"-"`
 	Error

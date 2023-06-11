@@ -8,7 +8,7 @@ import (
 )
 
 type XMLResponse struct {
-	XMLName xml.Name `xml:"Data"`
+	XMLName xml.Name `xml:"Data" json:"-"`
 }
 
 type AssumeRoleOutput struct {
